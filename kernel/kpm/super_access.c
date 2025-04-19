@@ -70,6 +70,7 @@ struct DynamicStructInfo {
 
 #define KERNEL_VERSION_6_1 KERNEL_VERSION(6, 1, 0)
 #define KERNEL_VERSION_5_15 KERNEL_VERSION(5, 15, 0)
+#define KERNEL_VERSION_6_12 KERNEL_VERSION(6, 12, 0)
 
 #include <../fs/mount.h>
 #include <linux/mount.h>
@@ -147,7 +148,9 @@ DYNAMIC_STRUCT_BEGIN(netlink_kernel_cfg)
     DEFINE_MEMBER(netlink_kernel_cfg, groups)
     DEFINE_MEMBER(netlink_kernel_cfg, flags)
     DEFINE_MEMBER(netlink_kernel_cfg, input)
+#if LINUX_VERSION_CODE < KERNEL_VERSION_6_12
     DEFINE_MEMBER(netlink_kernel_cfg, cb_mutex)
+#endif
     DEFINE_MEMBER(netlink_kernel_cfg, bind)
     DEFINE_MEMBER(netlink_kernel_cfg, unbind)
 #if LINUX_VERSION_CODE < KERNEL_VERSION_6_1
