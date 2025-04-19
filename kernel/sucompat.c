@@ -60,7 +60,7 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
 {
 	const char su[] = SU_PATH;
 
-#ifndef KSU_HOOK_WITH_KPROBES
+#ifndef CONFIG_KSU_HOOK_KPROBES
 	if (!ksu_faccessat_hook) {
 		return 0;
 	}
@@ -111,7 +111,7 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
 	// const char sh[] = SH_PATH;
 	const char su[] = SU_PATH;
 
-#ifndef KSU_HOOK_WITH_KPROBES
+#ifndef CONFIG_KSU_HOOK_KPROBES
 	if (!ksu_stat_hook){
 		return 0;
 	}
@@ -157,7 +157,7 @@ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *
 	struct filename *filename;
     const char su[] = SU_PATH;
     const char ksud[] = KSUD_PATH;
-#ifndef KSU_HOOK_WITH_KPROBES
+#ifndef CONFIG_KSU_HOOK_KPROBES
 	if (!ksu_execveat_sucompat_hook) {
 		return 0;
 	}
@@ -192,7 +192,7 @@ int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user, void 
 	const char su[] = SU_PATH;
 	char path[sizeof(su) + 1];
 
-#ifndef KSU_HOOK_WITH_KPROBES
+#ifndef CONFIG_KSU_HOOK_KPROBES
 	if (!ksu_execve_sucompat_hook) {
 		return 0;
 	}
@@ -220,7 +220,7 @@ int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user, void 
 
 int ksu_handle_devpts(struct inode *inode)
 {
-#ifndef KSU_HOOK_WITH_KPROBES
+#ifndef CONFIG_KSU_HOOK_KPROBES
 	if (!ksu_devpts_hook) {
 		return 0;
 	}
@@ -252,7 +252,7 @@ int ksu_handle_devpts(struct inode *inode)
 	return 0;
 }
 
-#ifdef KSU_HOOK_WITH_KPROBES
+#ifdef CONFIG_KSU_HOOK_KPROBES
 static int faccessat_handler_pre(struct kprobe *p, struct pt_regs *regs)
 {
 	struct pt_regs *real_regs = PT_REAL_REGS(regs);
@@ -389,7 +389,7 @@ static struct kprobe *su_kps[4];
 // sucompat: permited process can execute 'su' to gain root access.
 void ksu_sucompat_init()
 {
-#ifdef KSU_HOOK_WITH_KPROBES
+#ifdef CONFIG_KSU_HOOK_KPROBES
 	su_kps[0] = init_kprobe(SYS_EXECVE_SYMBOL, execve_handler_pre);
 	su_kps[1] = init_kprobe(SYS_FACCESSAT_SYMBOL, faccessat_handler_pre);
 	su_kps[2] = init_kprobe(SYS_NEWFSTATAT_SYMBOL, newfstatat_handler_pre);
@@ -406,7 +406,7 @@ void ksu_sucompat_init()
 
 void ksu_sucompat_exit()
 {
-#ifdef KSU_HOOK_WITH_KPROBES
+#ifdef CONFIG_KSU_HOOK_KPROBES
 	for (int i = 0; i < ARRAY_SIZE(su_kps); i++) {
 		destroy_kprobe(&su_kps[i]);
 	}

@@ -22,30 +22,6 @@ obj-$(CONFIG_KSU) += kernelsu.o
 
 obj-$(CONFIG_KPM) += kpm/
 
-
-# https://github.com/tiann/KernelSU/pull/2102/files#diff-3a325663233178293ee38b8161f3be511a466af7e0156b9d03d5aed0497564bfR19
-IS_GKI := $(strip $(shell \
-    if [ "$(VERSION)" -ge "5" -a "$(PATCHLEVEL)" -ge "10" ]; then \
-      echo TRUE; \
-    else \
-      echo FALSE; \
-    fi \
-  ))
-
-ifeq ($(IS_GKI),TRUE)
-$(info -- SukiSU: Kernel version is GKI.)
-# GKI manual hook checks
-# https://github.com/Pzqqt/android_kernel_xiaomi_marble/commit/5b8596b5604bcd0e6e12697a01136a0bb9eb0257
-ifeq ($(strip $(CONFIG_KSU_MANUAL_HOOK)),y)
-$(info -- SukiSU: Hooks with Manual hook!)
-ifeq ($(strip $(CONFIG_KSU)),m)
-$(error CONFIG_KSU_MANUAL_HOOK cannot be enabled when compiling SukiSU as LKM!)
-endif
-else
-ccflags-y += -DKSU_HOOK_WITH_KPROBES
-endif
-endif
-
 # .git is a text file while the module is imported by 'git submodule add'.
 ifeq ($(shell test -e $(srctree)/$(src)/../.git; echo $$?),0)
 $(shell cd $(srctree)/$(src); /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin [ -f ../.git/shallow ] && git fetch --unshallow)
@@ -74,11 +50,32 @@ endif
 
 $(info -- SukiSU Manager signature size: $(KSU_EXPECTED_SIZE))
 $(info -- SukiSU Manager signature hash: $(KSU_EXPECTED_HASH))
-$(info -- Supported Unofficial Manager: 5ec1cff (GKI) rsuntk (Non-GKI) ShirkNeko udochina (GKI and non-GKI and KPM)) 
-KERNEL_VERSION := $(VERSION).$(PATCHLEVEL)
+$(info -- Supported Unofficial Manager: 5ec1cff (GKI) rsuntk (Non-GKI) ShirkNeko udochina (GKI and non-GKI and KPM))
 
-# 检查KPM是否开启
+ifeq ($(strip $(CONFIG_KSU_HOOK_KPROBES)),y)
+$(info -- SukiSU: KPROBES hooking enabled!)
+else
+$(info -- SukiSU: Manual hooking enabled!)
+ifeq ($(strip $(CONFIG_KSU)),m)
+$(error CONFIG_KSU_MANUAL_HOOK cannot be enabled when compiling SukiSU as LKM!)
+endif
+endif
+
+KERNEL_VERSION := $(VERSION).$(PATCHLEVEL)
+KERNEL_TYPE := Non-GKI
+# Check for GKI 2.0 (5.10+ or 6.x+)
+ifneq ($(shell test \( $(VERSION) -ge 5 -a $(PATCHLEVEL) -ge 10 \) -o $(VERSION) -ge 6; echo $$?),0)
+# Check for GKI 1.0 (5.4)
+ifeq ($(shell test $(VERSION)-$(PATCHLEVEL) = 5-4; echo $$?),0)
+KERNEL_TYPE := GKI 1.0
+endif
+else
+KERNEL_TYPE := GKI 2.0
+endif
 $(info -- KERNEL_VERSION: $(KERNEL_VERSION))
+$(info -- KERNEL_TYPE: $(KERNEL_TYPE))
+
+# Check if KPM is enabled
 ifeq ($(CONFIG_KPM),y)
 $(info -- KPM is enabled)
 else
@@ -93,8 +90,6 @@ ATOMIC_INC_FUNC = atomic_long_inc_not_zero
 else
 $(info -- SukiSU compat: Neither atomic_inc_not_zero nor atomic_long_inc_not_zero found in kernel/cred.c)
 endif
-
-# Inform which function is being patched
 $(info -- SukiSU compat: Using $(ATOMIC_INC_FUNC) in get_cred_rcu patch.)
 
 # 写入签名
