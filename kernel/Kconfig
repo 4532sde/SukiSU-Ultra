@@ -48,6 +48,7 @@ config KSU_ALLOWLIST_WORKAROUND
 
 config KPM
 	  bool "Enable SukiSU KPM"
+	  depends on KSU
 	  default n
 	  help
 	    Enabling this option will activate the KPM feature of SukiSU.
