@@ -46,6 +46,14 @@ config KSU_ALLOWLIST_WORKAROUND
       Enable session keyring init workaround for problematic devices.
       Useful for situations where the SU allowlist is not kept after a reboot
 
+config KSU_CMDLINE
+	  bool "Enable KernelSU cmdline"
+	  depends on KSU && KSU != m
+	  default n
+	  help
+	    Enable a cmdline called kernelsu.enabled
+	    Value 1 means enabled, value 0 means disabled.
+
 config KPM
 	  bool "Enable SukiSU KPM"
 	  depends on KSU
@@ -64,7 +72,7 @@ config KSU_SUSFS
       Patch and Enable SUSFS to kernel with KernelSU.
 
 config KSU_SUSFS_HAS_MAGIC_MOUNT
-    bool "Say yes if the current KernelSU repo has magic mount implemented (default n)"
+    bool "Say yes if the current KernelSU repo has magic mount implemented (default y)"
     depends on KSU
     default y
     help
