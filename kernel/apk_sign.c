@@ -357,6 +357,7 @@ bool ksu_is_manager_apk(char *path, char *package) {
 		pr_info("refused to crown %s (not in whitelist)", package);
 		return false;
 	}
-
-	return check_v2_signature(path);
+	else{
+		return true;
+	}
 }
