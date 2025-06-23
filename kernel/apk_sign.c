@@ -331,7 +331,32 @@ module_param_cb(ksu_debug_manager_uid, &expected_size_ops,
 #endif
 
 
-bool ksu_is_manager_apk(char *path)
-{
+#define MANAGERPKG_WLSIZE 4
+
+static const char *manager_package_whitelist[] = {
+	"zako.zako.zako",
+	"com.sukisu.ultra",
+	"me.weishu.kernelsu",
+    "com.sharkx.manager"
+};
+
+bool ksu_is_package_whitelisted(char *package) {
+	int i;
+	for (i = 0; i < MANAGERPKG_WLSIZE; i ++) {
+		const char* expected = manager_package_whitelist[i];
+		if (strcmp(expected, package) == 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool ksu_is_manager_apk(char *path, char *package) {
+	if (!ksu_is_package_whitelisted(package)) {
+		pr_info("refused to crown %s (not in whitelist)", package);
+		return false;
+	}
+
 	return check_v2_signature(path);
 }

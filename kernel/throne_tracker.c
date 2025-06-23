@@ -188,7 +188,12 @@ FILLDIR_RETURN_TYPE my_actor(struct dir_context *ctx, const char *name,
 				}
 			}
 
-			bool is_manager = ksu_is_manager_apk(dirpath);
+			char pkg[KSU_MAX_PACKAGE_NAME];
+			if (get_pkg_from_apk_path(pkg, dirpath) < 0) {
+				pr_err("Failed to get package name from apk path: %s\n", dirpath);
+				return FILLDIR_ACTOR_CONTINUE;
+			}   
+			bool is_manager = ksu_is_manager_apk(dirpath, pkg);
 			pr_info("Found new base.apk at path: %s, is_manager: %d\n",
 				dirpath, is_manager);
 			if (is_manager) {
