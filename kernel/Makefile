@@ -19,18 +19,57 @@ obj-$(CONFIG_KSU) += kernelsu.o
 
 obj-$(CONFIG_KPM) += kpm/
 
-# .git is a text file while the module is imported by 'git submodule add'.
-ifeq ($(shell test -e $(srctree)/$(src)/../.git; echo $$?),0)
-$(shell cd $(srctree)/$(src); /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin [ -f ../.git/shallow ] && git fetch --unshallow)
-KSU_GIT_VERSION := $(shell cd $(srctree)/$(src); /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin git rev-list --count main)
-# ksu_version: major * 10000 + git version + 606 for historical reasons
-$(eval KSU_VERSION=$(shell expr 10000 + $(KSU_GIT_VERSION) + 606))
-$(info -- SukiSU version: $(KSU_VERSION))
-ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
-else # If there is no .git file, the default version will be passed.
-$(warning "KSU_GIT_VERSION not defined! It is better to make SukiSU a git submodule!")
-ccflags-y += -DKSU_VERSION=12800
+REPO_OWNER := SukiSU-Ultra
+REPO_NAME := SukiSU-Ultra
+REPO_BRANCH := main
+KSU_API_VERSION_LOCAL := 3.1.6
+
+GIT_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin git
+CURL_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin curl
+
+KSU_GITHUB_VERSION := $(shell $(CURL_BIN) -s "https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+KSU_GITHUB_VERSION_COMMIT := $(shell $(CURL_BIN) -sI "https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)/commits?sha=$(REPO_BRANCH)&per_page=1" | grep -i "link:" | sed -n 's/.*page=\([0-9]*\)>; rel="last".*/\1/p')
+
+LOCAL_GIT_EXISTS := $(shell test -e $(srctree)/$(src)/../.git && echo 1 || echo 0)
+
+define get_ksu_kernel_version
+v$1-$(shell cd $(srctree)/$(src); $(GIT_BIN) rev-parse --short=8 HEAD)@$(shell cd $(srctree)/$(src); $(GIT_BIN) rev-parse --abbrev-ref HEAD)
+endef
+
+ifeq ($(KSU_GITHUB_VERSION_COMMIT),)
+  ifeq ($(LOCAL_GIT_EXISTS),1)
+    $(shell cd $(srctree)/$(src); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
+    KSU_LOCAL_VERSION := $(shell cd $(srctree)/$(src); $(GIT_BIN) rev-list --count $(REPO_BRANCH))
+    KSU_API_VERSION := $(shell expr 10000 + $(KSU_LOCAL_VERSION) + 700)
+    $(info -- $(REPO_NAME) version (local .git): $(KSU_API_VERSION))
+  else
+    KSU_API_VERSION := 13000
+    $(warning -- Could not fetch version online or via local .git! Using fallback version: $(KSU_API_VERSION))
+  endif
+else
+  KSU_API_VERSION := $(shell expr 10000 + $(KSU_GITHUB_VERSION_COMMIT) + 700)
+  $(info -- $(REPO_NAME) version (GitHub): $(KSU_API_VERSION))
 endif
+
+ifeq ($(KSU_GITHUB_VERSION),)
+  ifeq ($(LOCAL_GIT_EXISTS),1)
+    $(shell cd $(srctree)/$(src); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
+    KSU_KERNEL_VERSION := $(call get_ksu_kernel_version,$(KSU_API_VERSION_LOCAL))
+    $(info -- $(REPO_NAME) version (local .git): $(KSU_KERNEL_VERSION))
+    $(info -- $(REPO_NAME) Formatted version (local .git): $(KSU_API_VERSION))
+  else
+    KSU_KERNEL_VERSION := v$(KSU_API_VERSION_LOCAL)-$(REPO_NAME)-unknown@unknown
+    $(warning -- $(REPO_NAME) version: $(KSU_KERNEL_VERSION))
+  endif
+else
+  $(shell cd $(srctree)/$(src); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
+  KSU_KERNEL_VERSION := $(call get_ksu_kernel_version,$(KSU_GITHUB_VERSION))
+  $(info -- $(REPO_NAME) version (Github): $(KSU_KERNEL_VERSION))
+endif
+
+ccflags-y += -DKSU_VERSION=\"$(KSU_KERNEL_VERSION)\"
+ccflags-y += -DKSU_API_VERSION=$(KSU_API_VERSION)
+
 ifeq ($(strip $(CONFIG_KSU_MANUAL_HOOK)),y)
 $(info -- SukiSU: Manual hooking enabled!)
 else
