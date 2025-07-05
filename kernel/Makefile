@@ -33,7 +33,7 @@ KSU_GITHUB_VERSION_COMMIT := $(shell $(CURL_BIN) -sI "https://api.github.com/rep
 LOCAL_GIT_EXISTS := $(shell test -e $(srctree)/$(src)/../.git && echo 1 || echo 0)
 
 define get_ksu_version_full
-$1-$(KSU_VERSION)-@Sideway
+v$1-$(KSU_VERSION)-@Sideway
 endef
 
 ifeq ($(KSU_GITHUB_VERSION_COMMIT),)
