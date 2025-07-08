@@ -5,7 +5,7 @@
 #include "ksu.h"
 #include "manager.h"
 
-bool ksu_is_manager_apk(char *path, char *package);
+bool ksu_is_manager_apk(char *path);
 
 struct dynamic_sign_config {
     unsigned int size;
