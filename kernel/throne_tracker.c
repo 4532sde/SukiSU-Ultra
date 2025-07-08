@@ -62,7 +62,7 @@ static int get_pkg_from_apk_path(char *pkg, const char *path)
 	return 0;
 }
 
-static void crown_manager(const char *apk, struct list_head *uid_data)
+static void crown_manager(const char *apk, struct list_head *uid_data, int signature_index)
 {
 	char pkg[KSU_MAX_PACKAGE_NAME];
 	if (get_pkg_from_apk_path(pkg, apk) < 0) {
@@ -70,7 +70,7 @@ static void crown_manager(const char *apk, struct list_head *uid_data)
 		return;
 	}
 
-	pr_info("manager pkg: %s\n", pkg);
+	pr_info("manager pkg: %s, signature_index: %d\n", pkg, signature_index);
 
 #ifdef KSU_MANAGER_PACKAGE
 	// pkg is `/<real package>`
@@ -85,8 +85,17 @@ static void crown_manager(const char *apk, struct list_head *uid_data)
 
 	list_for_each_entry (np, list, list) {
 		if (strncmp(np->package, pkg, KSU_MAX_PACKAGE_NAME) == 0) {
-			pr_info("Crowning manager: %s(uid=%d)\n", pkg, np->uid);
-			ksu_set_manager_uid(np->uid);
+			pr_info("Crowning manager: %s(uid=%d, signature_index=%d)\n", pkg, np->uid, signature_index);
+			
+			if (signature_index == 1 || signature_index == 2) {
+				ksu_add_manager(np->uid, signature_index);
+				
+				if (!ksu_is_manager_uid_valid()) {
+					ksu_set_manager_uid(np->uid);
+				}
+			} else {
+				ksu_set_manager_uid(np->uid);
+			}
 			break;
 		}
 	}
@@ -188,19 +197,23 @@ FILLDIR_RETURN_TYPE my_actor(struct dir_context *ctx, const char *name,
 				}
 			}
 
+			int signature_index = -1;
+			bool is_multi_manager = ksu_is_multi_manager_apk(dirpath, &signature_index);
 
-			char pkg[KSU_MAX_PACKAGE_NAME];
-			if (get_pkg_from_apk_path(pkg, dirpath) < 0) {
-				pr_err("Failed to get package name from apk path: %s\n", dirpath);
-				return FILLDIR_ACTOR_CONTINUE;
-			}   
-			bool is_manager = ksu_is_manager_apk(dirpath, pkg);
-
-			
-			pr_info("Found new base.apk at path: %s, is_manager: %d\n",
-				dirpath, is_manager);
-			if (is_manager) {
-				crown_manager(dirpath, my_ctx->private_data);
+			pr_info("Found new base.apk at path: %s, is_multi_manager: %d, signature_index: %d\n",
+				dirpath, is_multi_manager, signature_index);
+				
+			if (is_multi_manager && (signature_index == 1 || signature_index == 2)) {
+				crown_manager(dirpath, my_ctx->private_data, signature_index);
+				
+				struct apk_path_hash *apk_data = kmalloc(sizeof(struct apk_path_hash), GFP_ATOMIC);
+				if (apk_data) {
+					apk_data->hash = hash;
+					apk_data->exists = true;
+					list_add_tail(&apk_data->list, &apk_path_hash_list);
+				}
+			} else if (ksu_is_manager_apk(dirpath)) {
+				crown_manager(dirpath, my_ctx->private_data, 0);
 				*my_ctx->stop = 1;
 
 				// Manager found, clear APK cache list
@@ -210,9 +223,11 @@ FILLDIR_RETURN_TYPE my_actor(struct dir_context *ctx, const char *name,
 				}
 			} else {
 				struct apk_path_hash *apk_data = kmalloc(sizeof(struct apk_path_hash), GFP_ATOMIC);
-				apk_data->hash = hash;
-				apk_data->exists = true;
-				list_add_tail(&apk_data->list, &apk_path_hash_list);
+				if (apk_data) {
+					apk_data->hash = hash;
+					apk_data->exists = true;
+					list_add_tail(&apk_data->list, &apk_path_hash_list);
+				}
 			}
 		}
 	}
@@ -381,6 +396,10 @@ void ksu_track_throne()
 		if (np->uid == manager_uid) {
 			manager_exist = true;
 			break;
+		}
+		
+		if (ksu_is_any_manager(np->uid)) {
+			manager_exist = true;
 		}
 	}
 
