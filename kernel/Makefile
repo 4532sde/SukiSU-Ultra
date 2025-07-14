@@ -40,14 +40,14 @@ ifeq ($(KSU_GITHUB_VERSION_COMMIT),)
   ifeq ($(LOCAL_GIT_EXISTS),1)
     $(shell cd $(srctree)/$(src); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
     KSU_LOCAL_VERSION := $(shell cd $(srctree)/$(src); $(GIT_BIN) rev-list --count $(REPO_BRANCH))
-    KSU_VERSION := $(shell expr 10000 + $(KSU_LOCAL_VERSION) + 700)
+    KSU_VERSION := $(shell expr 10000 + $(KSU_LOCAL_VERSION) + 700 - 2)
     $(info -- $(REPO_NAME) version (local .git): $(KSU_VERSION))
   else
     KSU_VERSION := 13000
     $(warning -- Could not fetch version online or via local .git! Using fallback version: $(KSU_VERSION))
   endif
 else
-  KSU_VERSION := $(shell expr 10000 + $(KSU_GITHUB_VERSION_COMMIT) + 700)
+  KSU_VERSION := $(shell expr 10000 + $(KSU_GITHUB_VERSION_COMMIT) + 700 - 2)
   $(info -- $(REPO_NAME) version (GitHub): $(KSU_VERSION))
 endif
 
