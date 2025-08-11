@@ -76,11 +76,11 @@ void ksu_on_post_fs_data(void)
 {
     static bool done = false;
     if (done) {
-        pr_info("ksu_on_post_fs_data already done\n");
+        pr_info("%s already done\n", __func__);
         return;
     }
     done = true;
-    pr_info("ksu_on_post_fs_data!\n");
+   pr_info("%s!\n", __func__);
     ksu_load_allow_list();
     stop_input_hook();
 
@@ -551,35 +551,15 @@ static int input_handle_event_handler_pre(struct kprobe *p,
     return ksu_handle_input_handle_event(type, code, value);
 }
 
-#if 1
 static struct kprobe execve_kp = {
     .symbol_name = SYS_EXECVE_SYMBOL,
     .pre_handler = sys_execve_handler_pre,
 };
-#else
-static struct kprobe execve_kp = {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
-	.symbol_name = "do_execveat_common",
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
-	.symbol_name = "__do_execve_file",
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
-	.symbol_name = "do_execveat_common",
-#endif
-	.pre_handler = execve_handler_pre,
-};
-#endif
 
-#if 1
 static struct kprobe vfs_read_kp = {
 	.symbol_name = SYS_READ_SYMBOL,
 	.pre_handler = sys_read_handler_pre,
 };
-#else
-static struct kprobe vfs_read_kp = {
-	.symbol_name = "vfs_read",
-	.pre_handler = vfs_read_handler_pre,
-};
-#endif
 
 static struct kprobe input_event_kp = {
 	.symbol_name = "input_event",
@@ -601,11 +581,12 @@ static void do_stop_input_hook(struct work_struct *work)
 	unregister_kprobe(&input_event_kp);
 }
 #else
-static int ksu_common_execve_ksud(const char __user *filename_user,
+static int ksu_execve_ksud_common(const char __user *filename_user,
 			struct user_arg_ptr *argv)
 {
 	struct filename filename_in, *filename_p;
 	char path[32];
+	long len;
 	
 	// return early if disabled.
 	if (!ksu_execveat_hook) {
@@ -615,8 +596,11 @@ static int ksu_common_execve_ksud(const char __user *filename_user,
 	if (!filename_user)
 		return 0;
 
-	memset(path, 0, sizeof(path));
-	ksu_strncpy_from_user_nofault(path, filename_user, 32);
+	len = ksu_strncpy_from_user_nofault(path, filename_user, 32);
+	if (len <= 0)
+		return 0;
+
+	path[sizeof(path) - 1] = '\0';
 
 	// this is because ksu_handle_execveat_ksud calls it filename->name
 	filename_in.name = path;
@@ -629,7 +613,7 @@ int __maybe_unused ksu_handle_execve_ksud(const char __user *filename_user,
 			const char __user *const __user *__argv)
 {
 	struct user_arg_ptr argv = { .ptr.native = __argv };
-	return ksu_common_execve_ksud(filename_user, &argv);
+	return ksu_execve_ksud_common(filename_user, &argv);
 }
 
 #if defined(CONFIG_COMPAT) && defined(CONFIG_64BIT)
@@ -637,7 +621,7 @@ int __maybe_unused ksu_handle_compat_execve_ksud(const char __user *filename_use
 			const compat_uptr_t __user *__argv)
 {
 	struct user_arg_ptr argv = { .ptr.compat = __argv };
-	return ksu_common_execve_ksud(filename_user, &argv);
+	return ksu_execve_ksud_common(filename_user, &argv);
 }
 #endif /* COMPAT & 64BIT */
 

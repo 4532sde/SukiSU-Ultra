@@ -72,7 +72,7 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
 #endif
 
 #ifdef CONFIG_KSU_SUSFS_SUS_SU
-	char path[sizeof(su)] = {0};
+	char path[sizeof(su) + 1] = {0};
 #else
 	char path[sizeof(su) + 1];
 	memset(path, 0, sizeof(path));
@@ -126,7 +126,7 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
 	}
 
 #ifdef CONFIG_KSU_SUSFS_SUS_SU
-	char path[sizeof(su)] = {0};
+	char path[sizeof(su) + 1] = {0};
 #else
 	char path[sizeof(su) + 1];
 	memset(path, 0, sizeof(path));
@@ -199,7 +199,7 @@ int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user,
 {
 	//const char su[] = SU_PATH;
 #ifdef CONFIG_KSU_SUSFS_SUS_SU
-	char path[sizeof(su)] = {0};
+	char path[sizeof(su) + 1] = {0};
 #else
 	char path[sizeof(su) + 1];
 #endif
@@ -218,13 +218,9 @@ int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user,
 	 * some cpus dont really have that good speculative execution
 	 * access_ok to substitute set_fs, we check if pointer is accessible
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-	if (!access_ok(VERIFY_READ, *filename_user, sizeof(path)))
+	if (!ksu_access_ok(*filename_user, sizeof(path)))
 		return 0;
-#else
-	if (!access_ok(*filename_user, sizeof(path)))
-		return 0;
-#endif
+
 	// success = returns number of bytes and should be less than path
 	long len = strncpy_from_user(path, *filename_user, sizeof(path));
 	if (len <= 0 || len > sizeof(path))
